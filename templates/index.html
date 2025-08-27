@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Pokémon Card Collection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .form {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form input {
+            padding: 5px;
+            font-size: 1em;
+        }
+
+        .form button {
+            padding: 6px 12px;
+            background: #0073e6;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .form button:hover {
+            background: #005bb5;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background: #0073e6;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>My Pokémon Collection</h1>
+
+    <!-- Collection Stats -->
+    <div class="stats">
+        <div>Total Cards: <span id="total-cards">0</span></div>
+        <div>Total Value: $<span id="total-value">0.00</span></div>
+    </div>
+
+    <!-- Add Card Form -->
+    <form class="form" id="form" action="/add_card" method="POST">
+        <input type="text" name="name" placeholder="Card Name" required>
+        <input type="text" name="set_name" placeholder="Set Name" required>
+        <input type="text" name="card_number" placeholder="Card #" required>
+        <button type="submit">Add Card</button>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>Card</th>
+                <th>Name</th>
+                <th>Set</th>
+                <th>Card Number</th>
+                <th>Date Added</th>
+                <th>Price When Added</th>
+                <th>Current Price</th>
+                <th>Options</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+        </tbody>
+    </table>
+    <script>
+        // HTML elements that will be edited with js
+        const totalCardsElement = document.getElementById("total-cards");
+        const totalValueElement = document.getElementById("total-value");
+        let totalCards = 0;
+        let totalValue = 0;
+        const tableBody = document.getElementById("table-body");
+
+
+        function addCardToHTML(id, img, name, set_name, card_number, date_added, price_when_added, current_price, change_in_value) {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td><img src="${img}" style="width: 100px;"></td>
+                <td>${name}</td>
+                <td>${set_name}</td>
+                <td>${card_number}</td>
+                <td>${date_added}</td>
+                <td>$${price_when_added.toFixed(2)}</td>
+                <td>$${current_price.toFixed(2)}<br><span style="color: ${getColour(change_in_value)};">(${change_in_value}%)<span></td>
+                <td><button id="remove-${id}">Remove</button><br><button id="refresh-${id}">Refresh</button></td>
+            `;
+
+            tableBody.appendChild(row);
+
+            // Logic for the remove button
+            document.getElementById("remove-" + id).addEventListener("click", async (e) => {
+                await fetch(`http://127.0.0.1:5000/remove_card/${id}`, { 
+                    method: "DELETE" 
+                });
+
+                // Edit totals, I realize that this in ineficient, but it's my code and I'll do what I want.
+                totalCards--;
+                totalValue = totalValue - parseFloat(e.target.closest("tr").querySelectorAll("td")[6].innerHTML.substring(1).split("<")[0]);
+                totalCardsElement.innerHTML = totalCards;
+                totalValueElement.innerHTML = totalValue.toFixed(2);
+
+                // Remove row from table
+                e.target.closest("tr").remove();
+            });
+
+            // Logic for the refresh button 
+            document.getElementById("refresh-" + id).addEventListener("click", async (e) => {
+                response = await fetch(`http://127.0.0.1:5000/refresh_card/${id}`, {
+                    method: "POST" //PUT REQUEST??
+                });
+
+                // New data for the card
+                const data = await response.json();
+
+                // Get the cell that contains the price and the old price so we can edit the total account value
+                let row = e.target.closest("tr");
+                let priceCell = row.querySelector("td:nth-child(7)");
+                let oldPrice = priceCell.innerHTML.split("<")[0].substring(1);
+
+                // Essentially getting the original price when added straight from the html not the server. This may be less effective but idk
+                // The other option would be to to two reads of the db and get the price when added from there. I may change this in the future
+                newChangeInValue = getChangeInValue(parseFloat(row.querySelector("td:nth-child(6)").innerHTML.substring(1)), data.price);
+
+                // New cell
+                priceCell.innerHTML = "$" + data.price.toFixed(2) + `<br><span style="color: ${getColour(newChangeInValue)};">(${newChangeInValue}%)<span>`;
+                
+                updateCollectionTotals(oldPrice, data.price)
+            });
+        }
+
+        function updateCollectionTotals(oldPrice, priceToAdd) {
+            totalCards++;
+            totalValue += priceToAdd;
+            totalCardsElement.innerHTML = totalCards;
+            totalValueElement.innerHTML = totalValue.toFixed(2) + "()";
+            //ADD TOTAL ACCOUNT VALUE +/- %
+        }
+
+        function getChangeInValue(priceWhenAdded, currentPrice) {
+            if (priceWhenAdded != currentPrice)
+                return (((currentPrice - priceWhenAdded) / priceWhenAdded) * 100).toFixed(2);
+            else
+                return (0).toFixed(2) 
+        }
+
+        function getColour(changeInValue) {
+            if (changeInValue < 0)
+                return "red";
+            else if (changeInValue > 0) 
+                return "green";
+            else 
+                return "black";
+        }
+
+        // When the page is loaded, load in all the cards and update the total account value
+        document.addEventListener("DOMContentLoaded", async () => {
+            const response = await fetch("http://127.0.0.1:5000/get_cards");
+            const cards = await response.json();
+
+            cards.forEach(card => {
+                addCardToHTML(card.id, card.img, card.name, card.set_name, card.card_number, card.date_added, card.price_when_added, card.current_price, getChangeInValue(card.price_when_added, card.current_price));
+                updateCollectionTotals(0, card.current_price)
+            });
+        });
+
+        // This is for adding new cards from the Input form
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = document.getElementById('form');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            // Send data to backend
+            const response = await fetch("http://127.0.0.1:5000/add_card", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                const newCardData = await response.json();
+
+                addCardToHTML(newCardData.id, newCardData.img, data.name, data.set_name, data.card_number, newCardData.date_added, newCardData.price, newCardData.price, getChangeInValue(1, 1)); //just to pass it through the function
+                updateCollectionTotals(0, newCardData.price);
+
+                form.reset();
+            } else {
+                alert('Error adding card.');
+            }
+        });
+    </script>
+</body>
+</html>
