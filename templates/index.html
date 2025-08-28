@@ -111,20 +111,21 @@
         const totalValueElement = document.getElementById("total-value");
         let totalCards = 0;
         let totalValue = 0;
+        let totalOriginalValue = 0;
         const tableBody = document.getElementById("table-body");
 
 
-        function addCardToHTML(id, img, name, set_name, card_number, date_added, price_when_added, current_price, change_in_value) {
+        function addCardToHTML(id, img, name, setName, cardNumber, dateAdded, priceWhenAdded, currentPrice, changeInValue) {
             const row = document.createElement("tr");
 
             row.innerHTML = `
                 <td><img src="${img}" style="width: 100px;"></td>
                 <td>${name}</td>
-                <td>${set_name}</td>
-                <td>${card_number}</td>
-                <td>${date_added}</td>
-                <td>$${price_when_added.toFixed(2)}</td>
-                <td>$${current_price.toFixed(2)}<br><span style="color: ${getColour(change_in_value)};">(${change_in_value}%)<span></td>
+                <td>${setName}</td>
+                <td>${cardNumber}</td>
+                <td>${dateAdded}</td>
+                <td>$${priceWhenAdded.toFixed(2)}</td>
+                <td>$${currentPrice.toFixed(2)}<br><span style="color: ${getColour(changeInValue)};">(${changeInValue}%)<span></td>
                 <td><button id="remove-${id}">Remove</button><br><button id="refresh-${id}">Refresh</button></td>
             `;
 
@@ -136,7 +137,7 @@
                     method: "DELETE" 
                 });
 
-                // Edit totals, I realize that this in ineficient, but it's my code and I'll do what I want.
+                //TODO: Merge this with the function bc it doesn't show the change in value this way.
                 totalCards--;
                 totalValue = totalValue - parseFloat(e.target.closest("tr").querySelectorAll("td")[6].innerHTML.substring(1).split("<")[0]);
                 totalCardsElement.innerHTML = totalCards;
@@ -149,7 +150,7 @@
             // Logic for the refresh button 
             document.getElementById("refresh-" + id).addEventListener("click", async (e) => {
                 response = await fetch(`http://127.0.0.1:5000/refresh_card/${id}`, {
-                    method: "POST" //PUT REQUEST??
+                    method: "POST" //TODO: Put request instead?
                 });
 
                 // New data for the card
@@ -167,32 +168,41 @@
                 // New cell
                 priceCell.innerHTML = "$" + data.price.toFixed(2) + `<br><span style="color: ${getColour(newChangeInValue)};">(${newChangeInValue}%)<span>`;
                 
-                updateCollectionTotals(oldPrice, data.price)
+                //TODO: Animation here
+
+                updateCollectionTotals(true, oldPrice, data.price)
             });
         }
 
-        function updateCollectionTotals(oldPrice, priceToAdd) {
-            totalCards++;
-            totalValue += priceToAdd;
-            totalCardsElement.innerHTML = totalCards;
-            totalValueElement.innerHTML = totalValue.toFixed(2) + "()";
-            //ADD TOTAL ACCOUNT VALUE +/- %
+        function updateCollectionTotals(isRefreshing, oldPrice, priceToAdd) {
+            if (!isRefreshing) {
+                totalCards++;
+                totalCardsElement.innerHTML = totalCards;
+                totalValue += priceToAdd;
+            } else {
+                totalValue = totalValue - oldPrice + priceToAdd; //TODO: maybe this doesn't need to be in the else?
+            }
+            
+            totalValueElement.innerHTML = totalValue.toFixed(2) + `<span style="color:${getColour(getChangeInValue(totalOriginalValue, totalValue))}"> (${getChangeInValue(totalOriginalValue, totalValue)}%)</span>`;
         }
 
-        function getChangeInValue(priceWhenAdded, currentPrice) {
-            if (priceWhenAdded != currentPrice)
-                return (((currentPrice - priceWhenAdded) / priceWhenAdded) * 100).toFixed(2);
-            else
+        function getChangeInValue(oldPrice, newPrice) {
+            if (oldPrice != newPrice) {
+                return (((newPrice - oldPrice) / oldPrice) * 100).toFixed(2);
+            }
+            else {
                 return (0).toFixed(2) 
+            }
         }
 
         function getColour(changeInValue) {
-            if (changeInValue < 0)
+            if (changeInValue < 0) {
                 return "red";
-            else if (changeInValue > 0) 
+            } else if (changeInValue > 0) {
                 return "green";
-            else 
+            } else {
                 return "black";
+            } 
         }
 
         // When the page is loaded, load in all the cards and update the total account value
@@ -202,7 +212,8 @@
 
             cards.forEach(card => {
                 addCardToHTML(card.id, card.img, card.name, card.set_name, card.card_number, card.date_added, card.price_when_added, card.current_price, getChangeInValue(card.price_when_added, card.current_price));
-                updateCollectionTotals(0, card.current_price)
+                totalOriginalValue += card.price_when_added;
+                updateCollectionTotals(false, 0, card.current_price)
             });
         });
 
@@ -226,8 +237,9 @@
             if (response.ok) {
                 const newCardData = await response.json();
 
-                addCardToHTML(newCardData.id, newCardData.img, data.name, data.set_name, data.card_number, newCardData.date_added, newCardData.price, newCardData.price, getChangeInValue(1, 1)); //just to pass it through the function
-                updateCollectionTotals(0, newCardData.price);
+                addCardToHTML(newCardData.id, newCardData.img, data.name, data.set_name, data.card_number, newCardData.date_added, newCardData.price, newCardData.price, getChangeInValue(1, 1));
+                totalOriginalValue += newCardData.price;
+                updateCollectionTotals(false, 0, newCardData.price);
 
                 form.reset();
             } else {

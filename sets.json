@@ -1,0 +1,60 @@
+{
+    "sets": [
+      {
+        "name": "Base Set",
+        "card_count": 102
+      },
+      {
+        "name": "Jungle",
+        "card_count": 64
+      },
+      {
+        "name": "Fossil",
+        "card_count": 62
+      },
+      {
+        "name": "Team Rocket",
+        "card_count": 83
+      },
+      {
+        "name": "Gym Heroes",
+        "card_count": 132
+      },
+      {
+        "name": "Gym Challenge",
+        "card_count": 132
+      },
+      {
+        "name": "Neo Genesis",
+        "card_count": 111
+      },
+      {
+        "name": "Neo Discovery",
+        "card_count": 75
+      },
+      {
+        "name": "Neo Revelation",
+        "card_count": 66
+      },
+      {
+        "name": "Neo Destiny",
+        "card_count": 113
+      },
+      {
+        "name": "Legendary Collection",
+        "card_count": 110
+      },
+      {
+        "name": "Expedition Base Set",
+        "card_count": 165
+      },
+      {
+        "name": "Aquapolis",
+        "card_count": 186
+      },
+      {
+        "name": "Skyridge",
+        "card_count": 182
+      }
+    ]
+  }
