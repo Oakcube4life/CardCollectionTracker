@@ -70,6 +70,15 @@
         tr:nth-child(even) {
             background: #f9f9f9;
         }
+
+        @keyframes flash {
+            0%   { background-color: black; }
+            100% { background-color: transparent; }
+        }
+
+        .flash {
+            animation: flash 0.5s ease;
+        }
     </style>
 </head>
 <body>
@@ -125,7 +134,7 @@
                 <td>${cardNumber}</td>
                 <td>${dateAdded}</td>
                 <td>$${priceWhenAdded.toFixed(2)}</td>
-                <td>$${currentPrice.toFixed(2)}<br><span style="color: ${getColour(changeInValue)};">(${changeInValue}%)<span></td>
+                <td id="price-${id}">$${currentPrice.toFixed(2)}<br><span style="color: ${getColour(changeInValue)};">(${changeInValue}%)<span></td>
                 <td><button id="remove-${id}">Remove</button><br><button id="refresh-${id}">Refresh</button></td>
             `;
 
@@ -169,8 +178,17 @@
                 priceCell.innerHTML = "$" + data.price.toFixed(2) + `<br><span style="color: ${getColour(newChangeInValue)};">(${newChangeInValue}%)<span>`;
                 
                 //TODO: Animation here
-
                 updateCollectionTotals(true, oldPrice, data.price)
+                
+                const cardValue = document.getElementById(`price-${id}`);
+
+                // Trigger flash animation
+                cardValue.classList.add("flash");
+
+                // Remove class after animation so it can trigger again next time
+                cardValue.addEventListener("animationend", () => {
+                    cardValue.classList.remove("flash");
+                }, { once: true });
             });
         }
 
